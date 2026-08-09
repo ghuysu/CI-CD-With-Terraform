@@ -1,0 +1,98 @@
+name: Terraform PR
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "environments/**"
+      - "modules/**"
+      - "scripts/**"
+      - ".tflint.hcl"
+      - ".github/workflows/terraform-pr.yml"
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+
+env:
+  TF_VERSION: "1.12.2"
+  AWS_REGION: "ap-southeast-1"
+
+jobs:
+  terraform-pr:
+    name: Terraform PR - ${{ matrix.environment }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        environment:
+          - staging
+          - production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+
+      - name: Initialize TFLint
+        run: tflint --init
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Plan
+        run: |
+          chmod +x scripts/terraform-plan.sh
+          ./scripts/terraform-plan.sh "${{ matrix.environment }}"
+
+      - name: Upload Terraform Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-${{ matrix.environment }}
+          path: tfplan-${{ matrix.environment }}
+          retention-days: 1
+
+      - name: Comment Terraform Plan
+        uses: actions/github-script@v7
+        env:
+          ENVIRONMENT: ${{ matrix.environment }}
+          PLAN_FILE: tfplan-${{ matrix.environment }}
+        with:
+          script: |
+            const { execSync } = require("child_process");
+
+            const plan = execSync(
+              `terraform show -no-color ${process.env.PLAN_FILE}`,
+              { encoding: "utf8" }
+            );
+
+            const body = `## Terraform Plan — \`${process.env.ENVIRONMENT}\`
+
+            <details>
+            <summary>Show Plan</summary>
+
+            \`\`\`terraform
+            ${plan}
+            \`\`\`
+
+            </details>`;
+
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            });

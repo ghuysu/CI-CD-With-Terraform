@@ -1,0 +1,5 @@
+* @reviewer1 @reviewer2
+
+/environments/ @reviewer1 @reviewer2
+/modules/ @reviewer1 @reviewer2
+/.github/workflows/ @reviewer1 @reviewer2

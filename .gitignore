@@ -1,0 +1,100 @@
+# =========================================================
+# Terraform
+# =========================================================
+
+# Terraform working directory
+.terraform/
+**/.terraform/
+
+# Terraform state files
+*.tfstate
+*.tfstate.*
+**/*.tfstate
+**/*.tfstate.*
+
+# Terraform crash logs
+crash.log
+crash.*.log
+
+# Terraform variable files
+# Không commit tfvars nếu chứa secret / sensitive values
+*.tfvars
+*.tfvars.json
+
+# Terraform plan files
+*.tfplan
+tfplan
+tfplan-*
+
+# Terraform lock file
+# KEEP this file in Git
+# .terraform.lock.hcl
+
+
+# =========================================================
+# Secrets / Credentials
+# =========================================================
+
+.env
+.env.*
+!.env.example
+
+*.pem
+*.key
+*.crt
+
+.aws/
+credentials
+config
+
+
+# =========================================================
+# OS
+# =========================================================
+
+.DS_Store
+.DS_Store?
+._*
+
+Thumbs.db
+Desktop.ini
+
+
+# =========================================================
+# IDE
+# =========================================================
+
+.vscode/
+.idea/
+
+*.swp
+*.swo
+
+# JetBrains
+*.iml
+
+
+# =========================================================
+# Logs
+# =========================================================
+
+*.log
+logs/
+
+
+# =========================================================
+# Temporary files
+# =========================================================
+
+*.tmp
+*.temp
+*.bak
+*.swp
+
+
+# =========================================================
+# Generated files
+# =========================================================
+
+plan.txt
+*.out

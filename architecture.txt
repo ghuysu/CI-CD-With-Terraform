@@ -1,0 +1,44 @@
+====================== AWS Architecture ======================
+
+                           Internet
+                               │
+                     Internet Gateway (IGW)
+                               │
+         ┌─────────────────────┴─────────────────────┐
+         │                                           │
+         ▼                                           ▼
+  Application Load Balancer                   Bastion Host
+     (Public Subnets)                          (Public Subnet)
+         │                                           │
+         │                                     SSH (22)
+         │                                           │
+         ▼                                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Private Subnets                          │
+│                                                             │
+│        ┌─────────────────────────────────────────┐          │
+│        │         Auto Scaling Group              │          │
+│        │                                         │          │
+│        │    EC2 (AZ1)          EC2 (AZ2)         │          │
+│        └─────────────────────────────────────────┘          │
+│                                                             │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+                         NAT Gateway
+                         (Public Subnet)
+                               │
+                               ▼
+                     Internet Gateway (IGW)
+                               │
+                            Internet
+
+--------------------------------------------------------------
+
+Supporting Services
+
+• IAM Role / Instance Profile
+• Amazon S3 (Terraform Remote State)
+• DynamoDB (State Lock)
+
+==============================================================

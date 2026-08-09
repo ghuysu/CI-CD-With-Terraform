@@ -1,0 +1,224 @@
+name: Terraform Apply
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "environments/**"
+      - "modules/**"
+      - ".tflint.hcl"
+
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to deploy"
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TF_VERSION: "1.12.2"
+
+jobs:
+
+  # ==========================================================
+  # PLAN
+  # ==========================================================
+
+  plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+
+    outputs:
+      environment: ${{ steps.environment.outputs.environment }}
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # -------------------------------------------------------
+      # Determine environment
+      # -------------------------------------------------------
+
+      - name: Determine Environment
+        id: environment
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "environment=${{ inputs.environment }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "environment=production" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      # -------------------------------------------------------
+      # AWS OIDC
+      # -------------------------------------------------------
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
+          aws-region: ap-southeast-1
+
+      # -------------------------------------------------------
+      # Terraform Init
+      # -------------------------------------------------------
+
+      - name: Terraform Init
+        working-directory: environments/${{ steps.environment.outputs.environment }}
+        run: |
+          terraform init \
+            -input=false \
+            -no-color
+
+      # -------------------------------------------------------
+      # Terraform Validate
+      # -------------------------------------------------------
+
+      - name: Terraform Validate
+        working-directory: environments/${{ steps.environment.outputs.environment }}
+        run: |
+          terraform validate \
+            -no-color
+
+      # -------------------------------------------------------
+      # Terraform Plan
+      # -------------------------------------------------------
+
+      - name: Terraform Plan
+        working-directory: environments/${{ steps.environment.outputs.environment }}
+        run: |
+          terraform plan \
+            -input=false \
+            -no-color \
+            -var-file="${{ steps.environment.outputs.environment }}.tfvars" \
+            -out="tfplan"
+
+      # -------------------------------------------------------
+      # Upload exact plan
+      # -------------------------------------------------------
+
+      - name: Upload Terraform Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-${{ steps.environment.outputs.environment }}
+          path: environments/${{ steps.environment.outputs.environment }}/tfplan
+          retention-days: 1
+
+
+  # ==========================================================
+  # APPLY
+  # ==========================================================
+
+  apply:
+    name: Terraform Apply
+    needs: plan
+
+    runs-on: ubuntu-latest
+
+    # --------------------------------------------------------
+    # IMPORTANT
+    #
+    # Create a GitHub Environment named "production"
+    # and configure Required Reviewers there.
+    #
+    # This causes the job to pause here until someone
+    # approves the deployment.
+    # --------------------------------------------------------
+
+    environment:
+      name: ${{ needs.plan.outputs.environment }}
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # -------------------------------------------------------
+      # Setup Terraform
+      # -------------------------------------------------------
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      # -------------------------------------------------------
+      # AWS OIDC
+      # -------------------------------------------------------
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
+          aws-region: ap-southeast-1
+
+      # -------------------------------------------------------
+      # Download exact plan generated by previous job
+      # -------------------------------------------------------
+
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan-${{ needs.plan.outputs.environment }}
+          path: environments/${{ needs.plan.outputs.environment }}
+
+      # -------------------------------------------------------
+      # Terraform Init
+      # -------------------------------------------------------
+
+      - name: Terraform Init
+        working-directory: environments/${{ needs.plan.outputs.environment }}
+        run: |
+          terraform init \
+            -input=false \
+            -no-color
+
+      # -------------------------------------------------------
+      # Apply
+      # -------------------------------------------------------
+
+      - name: Terraform Apply
+        working-directory: environments/${{ needs.plan.outputs.environment }}
+        run: |
+          terraform apply \
+            -input=false \
+            -no-color \
+            tfplan
+
+      # -------------------------------------------------------
+      # Slack Notification
+      # -------------------------------------------------------
+
+      - name: Slack Notification
+        if: always()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [[ "${{ job.status }}" == "success" ]]; then
+            ./scripts/slack-notify.sh \
+              "${{ needs.plan.outputs.environment }}" \
+              success \
+              "Terraform apply completed successfully."
+          else
+            ./scripts/slack-notify.sh \
+              "${{ needs.plan.outputs.environment }}" \
+              failure \
+              "Terraform apply failed."
+          fi

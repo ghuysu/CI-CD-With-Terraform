@@ -1,0 +1,63 @@
+name: Terraform Drift Detection
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TF_VERSION: "1.12.2"
+  AWS_REGION: "ap-southeast-1"
+
+jobs:
+  drift:
+    name: Drift - ${{ matrix.environment }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        environment:
+          - staging
+          - production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Detect Terraform Drift
+        id: drift
+        continue-on-error: true
+        run: |
+          chmod +x scripts/terraform-drift.sh
+          ./scripts/terraform-drift.sh "${{ matrix.environment }}"
+
+      - name: Slack Notification
+        if: steps.drift.outcome == 'failure'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          ./scripts/slack-notify.sh \
+            "${{ matrix.environment }}" \
+            warning \
+            "Terraform drift detected or drift check failed."
+
+      - name: Fail Workflow
+        if: steps.drift.outcome == 'failure'
+        run: exit 1
