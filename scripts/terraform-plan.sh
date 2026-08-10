@@ -1,4 +1,3 @@
-```bash
 #!/usr/bin/env bash
 
 set -euo pipefail
@@ -192,4 +191,3 @@ echo "  ${PLAN_FILE}"
 
 echo ""
 echo "The plan can be reviewed before apply."
-```
