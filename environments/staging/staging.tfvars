@@ -1,6 +1,6 @@
 aws_region = "ap-southeast-1"
 
-project     = "terraform-with-cicd"
+project     = "terra"
 environment = "staging"
 
 vpc_cidr = "10.20.0.0/16"
