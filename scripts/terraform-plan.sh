@@ -1,6 +1,11 @@
+```bash
 #!/usr/bin/env bash
 
 set -euo pipefail
+
+# ============================================================
+# Configuration
+# ============================================================
 
 ENVIRONMENT="${1:-}"
 
@@ -10,8 +15,11 @@ if [[ -z "$ENVIRONMENT" ]]; then
   exit 1
 fi
 
-ENV_DIR="environments/${ENVIRONMENT}"
-PLAN_FILE="tfplan-${ENVIRONMENT}"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ENV_DIR="${PROJECT_ROOT}/environments/${ENVIRONMENT}"
+PLAN_FILE="${PROJECT_ROOT}/tfplan-${ENVIRONMENT}"
+TFVARS_FILE="${ENV_DIR}/${ENVIRONMENT}.tfvars"
+TFLINT_CONFIG="${PROJECT_ROOT}/.tflint.hcl"
 
 echo "========================================"
 echo "Terraform CI Pipeline"
@@ -30,9 +38,9 @@ if [[ ! -d "$ENV_DIR" ]]; then
   exit 1
 fi
 
-if [[ ! -f "${ENV_DIR}/${ENVIRONMENT}.tfvars" ]]; then
+if [[ ! -f "$TFVARS_FILE" ]]; then
   echo "ERROR: Variables file not found:"
-  echo "       ${ENV_DIR}/${ENVIRONMENT}.tfvars"
+  echo "       ${TFVARS_FILE}"
   exit 1
 fi
 
@@ -86,6 +94,8 @@ echo "========================================"
 echo "STEP 2: Terraform Format Check"
 echo "========================================"
 
+cd "$PROJECT_ROOT"
+
 terraform fmt \
   -check \
   -recursive \
@@ -93,6 +103,8 @@ terraform fmt \
   -no-color
 
 echo "Terraform format check passed."
+
+cd "$ENV_DIR"
 
 # ============================================================
 # 5. Terraform Validate
@@ -117,17 +129,19 @@ echo "========================================"
 echo "STEP 4: TFLint"
 echo "========================================"
 
-if [[ -f "../../.tflint.hcl" ]]; then
+if [[ -f "$TFLINT_CONFIG" ]]; then
 
   tflint \
-    --config="../../.tflint.hcl"
+    --chdir="$ENV_DIR" \
+    --config="$TFLINT_CONFIG"
 
 else
 
   echo "No .tflint.hcl found."
   echo "Running TFLint with default configuration."
 
-  tflint
+  tflint \
+    --chdir="$ENV_DIR"
 
 fi
 
@@ -160,8 +174,8 @@ echo "========================================"
 terraform plan \
   -input=false \
   -no-color \
-  -var-file="${ENVIRONMENT}.tfvars" \
-  -out="../../${PLAN_FILE}"
+  -var-file="$TFVARS_FILE" \
+  -out="$PLAN_FILE"
 
 echo ""
 echo "========================================"
@@ -178,3 +192,4 @@ echo "  ${PLAN_FILE}"
 
 echo ""
 echo "The plan can be reviewed before apply."
+```
