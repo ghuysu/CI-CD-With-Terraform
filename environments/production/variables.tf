@@ -3,11 +3,6 @@ variable "aws_region" {
   type        = string
 }
 
-variable "aws_profile" {
-  description = "AWS CLI profile"
-  type        = string
-}
-
 variable "project" {
   description = "Project name"
   type        = string

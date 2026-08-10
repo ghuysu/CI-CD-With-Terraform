@@ -13,11 +13,6 @@ variable "environment" {
   type        = string
 }
 
-variable "aws_profile" {
-  description = "AWS CLI profile"
-  type        = string
-}
-
 variable "vpc_cidr" {
   description = "CIDR block of the VPC"
   type        = string

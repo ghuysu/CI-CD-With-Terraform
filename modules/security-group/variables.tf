@@ -54,7 +54,7 @@ variable "egress_rules" {
 }
 
 variable "common_tags" {
-    description = "Common tags to apply to all resources"
-    type        = map(string)
-    default     = {}
+  description = "Common tags to apply to all resources"
+  type        = map(string)
+  default     = {}
 }

@@ -5,6 +5,7 @@ resource "aws_lb" "this" {
   security_groups            = [var.security_group_id]
   subnets                    = var.subnet_ids
   enable_deletion_protection = false
+  drop_invalid_header_fields = true
 
   tags = merge(
     var.common_tags,

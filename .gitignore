@@ -18,7 +18,6 @@ crash.*.log
 
 # Terraform variable files
 # Không commit tfvars nếu chứa secret / sensitive values
-*.tfvars
 *.tfvars.json
 
 # Terraform plan files
