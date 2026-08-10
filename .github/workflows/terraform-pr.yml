@@ -43,6 +43,11 @@ jobs:
 
       - name: Setup TFLint
         uses: terraform-linters/setup-tflint@v4
+      
+      - name: Install tfsec
+        run: |
+          curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+          tfsec --version
 
       - name: Initialize TFLint
         run: tflint --init
