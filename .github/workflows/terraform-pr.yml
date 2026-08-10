@@ -94,7 +94,9 @@ jobs:
             const { execSync } = require("child_process");
 
             const plan = execSync(
-              `terraform show -no-color ${process.env.PLAN_FILE}`,
+              `cd environments/${process.env.ENVIRONMENT} && ` +
+              `terraform init -input=false -no-color >/dev/null && ` +
+              `terraform show -no-color ../../${process.env.PLAN_FILE}`,
               { encoding: "utf8" }
             );
 
